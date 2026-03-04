@@ -1,0 +1,2486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoSuite — Unified GIS Application</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   THEME VARIABLES
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #181b24;
+  --bg-tertiary: #1e2230;
+  --bg-elevated: #252a38;
+  --border: #2d3348;
+  --border-focus: #c9915a;
+  --text-primary: #e8e6e1;
+  --text-secondary: #9a9ba3;
+  --text-muted: #5f6170;
+  --accent: #c9915a;
+  --accent-dim: #a07240;
+  --accent-glow: rgba(201,145,90,0.15);
+  --success: #5cb07e;
+  --error: #d45d5d;
+  --warning: #d4a94d;
+  --info: #5a8ec9;
+  --gcp-color-1: #ff6b6b;
+  --gcp-color-2: #4ecdc4;
+  --gcp-color-3: #ffe66d;
+  --gcp-color-4: #a78bfa;
+  --gcp-color-5: #f97316;
+  --gcp-color-6: #22d3ee;
+  --gcp-color-7: #34d399;
+  --gcp-color-8: #f472b6;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HEADER
+   ══════════════════════════════════════════════════════════════════════════ */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  height: 52px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--bg-primary);
+}
+
+.logo h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.logo h1 span { color: var(--accent); }
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px;
+}
+
+.mode-btn {
+  padding: 6px 18px;
+  border-radius: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.mode-btn:hover { color: var(--text-secondary); }
+.mode-btn.active { background: var(--accent); color: var(--bg-primary); font-weight: 600; }
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHARED BUTTON STYLES
+   ══════════════════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.btn:hover { border-color: var(--text-muted); background: var(--bg-tertiary); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.btn-danger {
+  color: var(--error);
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn-danger:hover { background: rgba(212,93,93,0.1); border-color: var(--error); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHARED TAB STYLES
+   ══════════════════════════════════════════════════════════════════════════ */
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 11px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-page { display: none; }
+.tab-page.active { display: block; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════════════════════════════════════ */
+.toast-container {
+  position: fixed;
+  top: 64px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-primary);
+  animation: toastIn 0.3s ease;
+  max-width: 340px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--error); }
+.toast.info { border-left: 3px solid var(--info); }
+.toast.warning { border-left: 3px solid var(--warning); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MODAL
+   ══════════════════════════════════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 560px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal h3 { font-size: 16px; margin-bottom: 14px; }
+.modal p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   STATUS BAR
+   ══════════════════════════════════════════════════════════════════════════ */
+.status-bar {
+  padding: 8px 20px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.status-dot.ready { background: var(--success); }
+.status-dot.warning { background: var(--warning); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GEOREF MODE
+   ══════════════════════════════════════════════════════════════════════════ */
+#georef-mode {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  height: calc(100vh - 52px - 32px);
+}
+
+.canvas-panel {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border);
+}
+
+.canvas-toolbar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+}
+
+.canvas-toolbar .btn {
+  border: none;
+  background: transparent;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 16px;
+  min-width: 36px;
+  justify-content: center;
+}
+
+.canvas-toolbar .btn:hover { background: var(--bg-elevated); }
+.canvas-toolbar .btn.active { background: var(--accent); color: var(--bg-primary); }
+
+.canvas-info {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  z-index: 20;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 16px;
+}
+
+.canvas-info span { color: var(--text-muted); }
+
+#imageCanvas { cursor: crosshair; display: block; }
+
+.upload-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: var(--bg-primary);
+  transition: opacity 0.3s;
+}
+
+.upload-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.upload-zone {
+  width: 460px;
+  max-width: 90%;
+  padding: 60px 40px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.upload-icon { font-size: 48px; margin-bottom: 18px; opacity: 0.8; }
+
+.upload-zone h3 { font-size: 17px; font-weight: 500; margin-bottom: 8px; }
+
+.upload-zone p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+.upload-zone .formats {
+  margin-top: 16px;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.format-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* GeoRef Side Panel */
+.georef-side-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.section-header {
+  padding: 14px 18px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gcp-instructions {
+  padding: 0 18px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.gcp-list { padding: 0 10px; }
+
+.gcp-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.gcp-card:hover { border-color: var(--text-muted); }
+.gcp-card.incomplete { border-left: 3px solid var(--warning); }
+.gcp-card.complete { border-left: 3px solid var(--success); }
+
+.gcp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.gcp-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gcp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gcp-card-body {
+  padding: 0 10px 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.gcp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gcp-field label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gcp-field input, .corner-field input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.gcp-field input:focus, .corner-field input:focus { outline: none; border-color: var(--accent); }
+.gcp-field input:read-only { color: var(--text-muted); background: var(--bg-secondary); }
+
+.gcp-empty {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.gcp-empty .icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
+
+/* Corner Quick-Set */
+.corner-quick-set { padding: 0 18px 12px; }
+
+.corner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.corner-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.corner-field label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.corner-apply-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Settings */
+.settings-section {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.setting-row label { font-size: 13px; color: var(--text-primary); }
+
+select, .setting-input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  width: 170px;
+  cursor: pointer;
+}
+
+select:focus, .setting-input:focus { outline: none; border-color: var(--accent); }
+
+/* Export options */
+.export-section { padding: 10px 18px; }
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-option:hover { border-color: var(--accent); background: var(--bg-elevated); }
+.export-option.disabled { opacity: 0.4; cursor: not-allowed; }
+.export-icon { font-size: 20px; }
+.export-details h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.export-details p { font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DIGITIZER MODE
+   ══════════════════════════════════════════════════════════════════════════ */
+#digitizer-mode {
+  display: none;
+  grid-template-columns: 300px 1fr;
+  height: calc(100vh - 52px - 32px);
+}
+
+.digi-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.digi-sidebar .panel-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.digi-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.digi-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.digi-section label {
+  font-size: 12px;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.digi-section input[type="file"] {
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.digi-section input[type="range"] {
+  width: 100%;
+  margin-bottom: 8px;
+  accent-color: var(--accent);
+}
+
+/* Layer list */
+.layer-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 5px;
+  background: var(--bg-tertiary);
+  font-size: 12px;
+  transition: border-color 0.2s;
+}
+
+.layer-item:hover { border-color: var(--text-muted); }
+
+.layer-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.layer-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.layer-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.layer-actions button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.layer-actions button:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+/* Tools section */
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover { border-color: var(--accent); background: var(--bg-elevated); }
+.tool-btn.active { border-color: var(--accent); background: var(--accent-glow); }
+.tool-btn .icon { font-size: 16px; }
+.tool-btn .desc { font-size: 11px; color: var(--text-muted); }
+
+/* Data section */
+.data-btn {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+/* Map container */
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LEAFLET DARK THEME OVERRIDES
+   ══════════════════════════════════════════════════════════════════════════ */
+.leaflet-container {
+  background: var(--bg-primary) !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+.leaflet-control-zoom a,
+.leaflet-control-layers-toggle,
+.leaflet-draw-toolbar a {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+.leaflet-control-zoom a:hover,
+.leaflet-draw-toolbar a:hover {
+  background-color: var(--bg-elevated) !important;
+}
+
+.leaflet-control-layers {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+.leaflet-control-layers label {
+  color: var(--text-primary) !important;
+}
+
+.leaflet-control-layers-separator {
+  border-top-color: var(--border) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.leaflet-popup-close-button {
+  color: var(--text-muted) !important;
+}
+
+.leaflet-bar {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+  overflow: hidden;
+}
+
+.leaflet-bar a {
+  border-bottom-color: var(--border) !important;
+}
+
+.leaflet-draw-toolbar a {
+  background-size: 300px 30px !important;
+}
+
+.leaflet-draw-actions {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.leaflet-draw-actions a {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+.leaflet-draw-actions a:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(15,17,23,0.7) !important;
+  color: var(--text-muted) !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--text-secondary) !important;
+}
+
+/* Dark tile filter */
+.dark-tiles {
+  filter: brightness(0.75) contrast(1.1) saturate(0.8);
+}
+
+/* Popup form styling */
+.feature-popup input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.feature-popup input:focus { outline: none; border-color: var(--accent); }
+
+.feature-popup .popup-save {
+  padding: 4px 12px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Measurement popup */
+.measure-popup {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  #georef-mode {
+    grid-template-columns: 1fr;
+    grid-template-rows: 50vh 1fr;
+  }
+  .canvas-panel { border-right: none; border-bottom: 1px solid var(--border); }
+  #digitizer-mode {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .digi-sidebar { max-height: 40vh; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     HEADER
+     ════════════════════════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">G</div>
+    <h1>Geo<span>Suite</span></h1>
+  </div>
+  <div class="header-center">
+    <button class="mode-btn active" id="modeGeoRef" onclick="switchMode('georef')">GeoRef</button>
+    <button class="mode-btn" id="modeDigitizer" onclick="switchMode('digitizer')">Digitizer</button>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-sm" onclick="toggleHelp()">? Help</button>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     GEOREF MODE
+     ════════════════════════════════════════════════════════════════════════ -->
+<div id="georef-mode">
+  <!-- Canvas Panel -->
+  <div class="canvas-panel" id="canvasPanel">
+    <div class="upload-overlay" id="uploadOverlay">
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">&#x1F5FA;&#xFE0F;</div>
+        <h3>Drop your raster image here</h3>
+        <p>or click to browse files</p>
+        <div class="formats">
+          <span class="format-tag">JPG</span>
+          <span class="format-tag">PNG</span>
+          <span class="format-tag">TIFF</span>
+          <span class="format-tag">BMP</span>
+          <span class="format-tag">WebP</span>
+        </div>
+      </div>
+      <input type="file" id="georefFileInput" accept="image/*,.tif,.tiff" hidden>
+    </div>
+
+    <div class="canvas-toolbar" id="canvasToolbar" style="display:none;">
+      <button class="btn active" id="toolGcp" onclick="setTool('gcp')" title="Place GCP">&#x1F4CD;</button>
+      <button class="btn" id="toolPan" onclick="setTool('pan')" title="Pan">&#x270B;</button>
+      <button class="btn" onclick="grZoomIn()" title="Zoom in">+</button>
+      <button class="btn" onclick="grZoomOut()" title="Zoom out">-</button>
+      <button class="btn" onclick="grZoomFit()" title="Fit to view">&#x229E;</button>
+    </div>
+
+    <canvas id="imageCanvas"></canvas>
+
+    <div class="canvas-info" id="canvasInfo" style="display:none;">
+      <div><span>Pixel:</span> <strong id="infoPixel">- , -</strong></div>
+      <div><span>Zoom:</span> <strong id="infoZoom">100%</strong></div>
+      <div><span>Image:</span> <strong id="infoSize">- x -</strong></div>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="georef-side-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-tab="gcps" onclick="grSwitchTab('gcps')">GCPs</div>
+      <div class="panel-tab" data-tab="settings" onclick="grSwitchTab('settings')">Settings</div>
+      <div class="panel-tab" data-tab="export" onclick="grSwitchTab('export')">Export</div>
+    </div>
+
+    <div class="panel-content">
+      <!-- GCPs Tab -->
+      <div class="tab-page active" id="tabGcps">
+        <div class="section-header">
+          <h3>Ground Control Points</h3>
+          <span style="font-size:12px;color:var(--text-muted)" id="gcpCount">0 points</span>
+        </div>
+        <div class="gcp-instructions">
+          Click on the image to place GCPs, then enter geographic coordinates (lon, lat). Minimum 3 GCPs; 4+ recommended.
+        </div>
+
+        <div class="section-header"><h3>Quick Corner Bounds</h3></div>
+        <div class="gcp-instructions">
+          Enter bounding coordinates and place 4 corner GCPs, then click "Apply Bounds" to auto-fill.
+        </div>
+        <div class="corner-quick-set">
+          <div class="corner-grid">
+            <div class="corner-field">
+              <label>West Lon</label>
+              <input type="number" step="any" id="boundWest" placeholder="e.g. 96.00">
+            </div>
+            <div class="corner-field">
+              <label>East Lon</label>
+              <input type="number" step="any" id="boundEast" placeholder="e.g. 96.25">
+            </div>
+            <div class="corner-field">
+              <label>South Lat</label>
+              <input type="number" step="any" id="boundSouth" placeholder="e.g. 22.25">
+            </div>
+            <div class="corner-field">
+              <label>North Lat</label>
+              <input type="number" step="any" id="boundNorth" placeholder="e.g. 22.50">
+            </div>
+          </div>
+          <div class="corner-apply-row">
+            <button class="btn btn-sm" onclick="applyCornerBounds()">Apply Bounds to 4 GCPs</button>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h3>GCP List</h3>
+          <button class="btn btn-sm btn-danger" onclick="clearAllGcps()">Clear All</button>
+        </div>
+        <div class="gcp-list" id="gcpList">
+          <div class="gcp-empty" id="gcpEmpty">
+            <div class="icon">&#x1F4CC;</div>
+            <div>No GCPs placed yet.<br>Click on the image to add points.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div class="tab-page" id="tabSettings">
+        <div class="settings-section">
+          <h4>Coordinate Reference System</h4>
+          <div class="setting-row">
+            <label>Output CRS</label>
+            <select id="settingCrs">
+              <option value="EPSG:4326">WGS 84 (EPSG:4326)</option>
+              <option value="EPSG:32646">UTM 46N (EPSG:32646)</option>
+              <option value="EPSG:32647">UTM 47N (EPSG:32647)</option>
+              <option value="EPSG:32648">UTM 48N (EPSG:32648)</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>Coordinate Input Format</h4>
+          <div class="setting-row">
+            <label>Format</label>
+            <select id="settingCoordFormat">
+              <option value="dd">Decimal Degrees</option>
+              <option value="dms">Degrees Minutes Seconds</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>Transform Method</h4>
+          <div class="setting-row">
+            <label>Method</label>
+            <select id="settingTransform">
+              <option value="affine">Affine (6-param)</option>
+              <option value="polynomial1">1st Order Polynomial</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h4>GeoTIFF Compression</h4>
+          <div class="setting-row">
+            <label>Compression</label>
+            <select id="settingCompression">
+              <option value="none">None</option>
+              <option value="lzw">LZW</option>
+              <option value="deflate">Deflate</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Tab -->
+      <div class="tab-page" id="tabExport">
+        <div class="section-header"><h3>Export Georeferenced Data</h3></div>
+        <div class="gcp-instructions" id="exportStatus">
+          Place at least 3 GCPs with coordinates to enable export.
+        </div>
+        <div class="export-section">
+          <div class="export-option" onclick="exportGeoTIFF()">
+            <div class="export-icon">&#x1F30D;</div>
+            <div class="export-details">
+              <h4>GeoTIFF (.tif)</h4>
+              <p>Georeferenced raster with embedded CRS</p>
+            </div>
+          </div>
+          <div class="export-option" onclick="exportWorldFile()">
+            <div class="export-icon">&#x1F4C4;</div>
+            <div class="export-details">
+              <h4>World File (.jgw / .pgw / .tfw)</h4>
+              <p>Sidecar affine transform file</p>
+            </div>
+          </div>
+          <div class="export-option" onclick="exportGcpFile()">
+            <div class="export-icon">&#x1F4CC;</div>
+            <div class="export-details">
+              <h4>GCP File (.points)</h4>
+              <p>QGIS-compatible GCP file</p>
+            </div>
+          </div>
+          <div class="export-option" onclick="exportGcpCsv()">
+            <div class="export-icon">&#x1F4CA;</div>
+            <div class="export-details">
+              <h4>GCP Table (.csv)</h4>
+              <p>Spreadsheet-friendly coordinate table</p>
+            </div>
+          </div>
+          <div class="export-option" onclick="exportPrjFile()">
+            <div class="export-icon">&#x1F517;</div>
+            <div class="export-details">
+              <h4>Projection File (.prj)</h4>
+              <p>WKT projection definition</p>
+            </div>
+          </div>
+          <div class="export-option" onclick="sendToDigitizer()" style="border-color:var(--accent);">
+            <div class="export-icon">&#x27A1;&#xFE0F;</div>
+            <div class="export-details">
+              <h4>Send to Digitizer</h4>
+              <p>Overlay georeferenced image on map for digitizing</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     DIGITIZER MODE
+     ════════════════════════════════════════════════════════════════════════ -->
+<div id="digitizer-mode">
+  <div class="digi-sidebar">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-dtab="layers" onclick="digiSwitchTab('layers')">Layers</div>
+      <div class="panel-tab" data-dtab="tools" onclick="digiSwitchTab('tools')">Tools</div>
+      <div class="panel-tab" data-dtab="data" onclick="digiSwitchTab('data')">Data</div>
+    </div>
+    <div class="panel-content">
+      <!-- Layers Tab -->
+      <div class="tab-page active" id="dtabLayers">
+        <div class="digi-section">
+          <h4>Upload Raster</h4>
+          <label>GeoTIFF (.tif)</label>
+          <input type="file" id="digiGeotiff" accept=".tif,.tiff">
+          <label>Image (JPG/PNG)</label>
+          <input type="file" id="digiImage" accept="image/*">
+          <label>Opacity</label>
+          <input type="range" id="digiOpacity" min="0" max="1" step="0.05" value="0.8">
+        </div>
+        <div class="digi-section">
+          <h4>Layer List</h4>
+          <div class="layer-list" id="digiLayerList">
+            <div class="gcp-empty"><div class="icon">&#x1F5C2;&#xFE0F;</div><div>No layers yet</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tools Tab -->
+      <div class="tab-page" id="dtabTools">
+        <div class="digi-section">
+          <h4>Measurement Tools</h4>
+          <button class="tool-btn" id="btnMeasureDist" onclick="startMeasureDistance()">
+            <span class="icon">&#x1F4CF;</span>
+            <div>
+              <div>Measure Distance</div>
+              <div class="desc">Click points, double-click to finish</div>
+            </div>
+          </button>
+          <button class="tool-btn" id="btnMeasureArea" onclick="startMeasureArea()">
+            <span class="icon">&#x2B1B;</span>
+            <div>
+              <div>Measure Area</div>
+              <div class="desc">Click to draw polygon, double-click to close</div>
+            </div>
+          </button>
+          <button class="tool-btn" onclick="clearMeasurements()">
+            <span class="icon">&#x1F5D1;&#xFE0F;</span>
+            <div>
+              <div>Clear Measurements</div>
+              <div class="desc">Remove all measurement overlays</div>
+            </div>
+          </button>
+        </div>
+        <div class="digi-section">
+          <h4>Draw Features</h4>
+          <p style="font-size:12px;color:var(--text-muted);line-height:1.5;">
+            Use the draw toolbar on the map to create polygons, polylines, markers, rectangles, and circles. Click a feature to edit its name.
+          </p>
+        </div>
+      </div>
+
+      <!-- Data Tab -->
+      <div class="tab-page" id="dtabData">
+        <div class="digi-section">
+          <h4>GeoJSON</h4>
+          <label>Import GeoJSON</label>
+          <input type="file" id="digiGeojsonUpload" accept=".geojson,.json">
+          <button class="btn data-btn" onclick="digiExportGeoJSON()" style="margin-top:8px;">Export GeoJSON</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     STATUS BAR
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">GeoRef mode — upload an image to begin</span>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Help Modal -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <h3>GeoSuite Help</h3>
+    <p>
+      <strong>GeoRef Mode</strong><br>
+      1. Upload a raster image (scanned map, aerial photo, etc.).<br>
+      2. Click on known locations to place Ground Control Points (GCPs).<br>
+      3. Enter geographic coordinates (lon, lat) for each GCP, or use Quick Corner Bounds.<br>
+      4. Export as GeoTIFF, World File, or send directly to Digitizer mode.<br><br>
+      <strong>Digitizer Mode</strong><br>
+      1. Upload GeoTIFFs (auto-positioned by georeference metadata) or plain images.<br>
+      2. Use the draw toolbar to create vector features (polygons, lines, markers, rectangles, circles).<br>
+      3. Click features to edit names. Use Measure Distance/Area tools for quick measurements.<br>
+      4. Import/export GeoJSON from the Data tab.<br><br>
+      <strong>Integration</strong><br>
+      Use "Send to Digitizer" in GeoRef export to overlay your georeferenced image on the Leaflet map for digitizing.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="toggleHelp()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SCRIPTS
+     ════════════════════════════════════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+// ============================================================================
+// SHARED UTILITIES
+// ============================================================================
+function showToast(message, type) {
+  type = type || 'info';
+  var container = document.getElementById('toastContainer');
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 4000);
+}
+
+function updateStatus(type, text) {
+  document.getElementById('statusDot').className = 'status-dot ' + type;
+  document.getElementById('statusText').textContent = text;
+}
+
+function downloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function toggleHelp() {
+  document.getElementById('helpModal').classList.toggle('active');
+}
+
+function parseTiffToCanvas(arrayBuffer) {
+  return GeoTIFF.fromArrayBuffer(arrayBuffer).then(function(tiff) {
+    return tiff.getImage();
+  }).then(function(image) {
+    var w = image.getWidth();
+    var h = image.getHeight();
+    return image.readRasters().then(function(data) {
+      var c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      var ctx = c.getContext('2d');
+      var id = ctx.createImageData(w, h);
+      var numBands = data.length;
+      for (var i = 0; i < w * h; i++) {
+        if (numBands >= 3) {
+          id.data[i * 4] = data[0][i];
+          id.data[i * 4 + 1] = data[1][i];
+          id.data[i * 4 + 2] = data[2][i];
+          id.data[i * 4 + 3] = numBands >= 4 ? data[3][i] : 255;
+        } else {
+          id.data[i * 4] = data[0][i];
+          id.data[i * 4 + 1] = data[0][i];
+          id.data[i * 4 + 2] = data[0][i];
+          id.data[i * 4 + 3] = 255;
+        }
+      }
+      ctx.putImageData(id, 0, 0);
+      return { canvas: c, image: image, width: w, height: h };
+    });
+  });
+}
+
+// Math: Least Squares & Gaussian Elimination
+function leastSquares(A, b) {
+  var n = A.length;
+  var m = A[0].length;
+  var ATA = [];
+  for (var i = 0; i < m; i++) {
+    ATA[i] = new Float64Array(m);
+    for (var j = 0; j < m; j++) {
+      for (var k = 0; k < n; k++) ATA[i][j] += A[k][i] * A[k][j];
+    }
+  }
+  var ATb = new Float64Array(m);
+  for (var i = 0; i < m; i++) {
+    for (var k = 0; k < n; k++) ATb[i] += A[k][i] * b[k];
+  }
+  var mat = ATA.map(function(row, i) {
+    var r = [];
+    for (var j = 0; j < row.length; j++) r.push(row[j]);
+    r.push(ATb[i]);
+    return r;
+  });
+  return gaussianElimination(mat);
+}
+
+function gaussianElimination(mat) {
+  var n = mat.length;
+  for (var i = 0; i < n; i++) {
+    var maxVal = Math.abs(mat[i][i]);
+    var maxRow = i;
+    for (var k = i + 1; k < n; k++) {
+      if (Math.abs(mat[k][i]) > maxVal) { maxVal = Math.abs(mat[k][i]); maxRow = k; }
+    }
+    var tmp = mat[i]; mat[i] = mat[maxRow]; mat[maxRow] = tmp;
+    if (Math.abs(mat[i][i]) < 1e-12) return null;
+    for (var k = i + 1; k < n; k++) {
+      var factor = mat[k][i] / mat[i][i];
+      for (var j = i; j <= n; j++) mat[k][j] -= factor * mat[i][j];
+    }
+  }
+  var x = new Float64Array(n);
+  for (var i = n - 1; i >= 0; i--) {
+    x[i] = mat[i][n];
+    for (var j = i + 1; j < n; j++) x[i] -= mat[i][j] * x[j];
+    x[i] /= mat[i][i];
+  }
+  return x;
+}
+
+function computeGeodesicArea(latlngs) {
+  var R = 6371000;
+  var rad = Math.PI / 180;
+  var n = latlngs.length;
+  if (n < 3) return 0;
+  var total = 0;
+  for (var i = 0; i < n; i++) {
+    var j = (i + 1) % n;
+    var lat1 = latlngs[i].lat * rad;
+    var lat2 = latlngs[j].lat * rad;
+    var dlon = (latlngs[j].lng - latlngs[i].lng) * rad;
+    total += dlon * (2 + Math.sin(lat1) + Math.sin(lat2));
+  }
+  total = Math.abs(total * R * R / 2);
+  return total;
+}
+
+// ============================================================================
+// APP BRIDGE
+// ============================================================================
+var AppBridge = {
+  pendingOverlay: null  // {dataURL, bounds: [[s,w],[n,e]], name}
+};
+
+// ============================================================================
+// MODE SWITCHING
+// ============================================================================
+var currentMode = 'georef';
+var leafletInitialized = false;
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeGeoRef').classList.toggle('active', mode === 'georef');
+  document.getElementById('modeDigitizer').classList.toggle('active', mode === 'digitizer');
+
+  if (mode === 'georef') {
+    document.getElementById('georef-mode').style.display = 'grid';
+    document.getElementById('digitizer-mode').style.display = 'none';
+    updateStatus('', 'GeoRef mode');
+    if (grState.image) grResizeCanvas();
+  } else {
+    document.getElementById('georef-mode').style.display = 'none';
+    document.getElementById('digitizer-mode').style.display = 'grid';
+    if (!leafletInitialized) {
+      initLeaflet();
+      leafletInitialized = true;
+    }
+    setTimeout(function() {
+      map.invalidateSize();
+      if (AppBridge.pendingOverlay) {
+        receiveOverlay();
+      }
+    }, 100);
+    updateStatus('ready', 'Digitizer mode');
+  }
+}
+
+// ============================================================================
+// GEOREF MODE — STATE
+// ============================================================================
+var GCP_COLORS = [
+  '#ff6b6b','#4ecdc4','#ffe66d','#a78bfa',
+  '#f97316','#22d3ee','#34d399','#f472b6',
+  '#818cf8','#fb923c','#2dd4bf','#fbbf24',
+];
+
+var grState = {
+  image: null,
+  fileName: '',
+  gcps: [],
+  nextId: 1,
+  tool: 'gcp',
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  isPanning: false,
+  panStartX: 0,
+  panStartY: 0,
+  panOffsetX: 0,
+  panOffsetY: 0,
+};
+
+var grCanvas = document.getElementById('imageCanvas');
+var grCtx = grCanvas.getContext('2d');
+
+// ============================================================================
+// GEOREF MODE — FILE UPLOAD
+// ============================================================================
+var uploadZone = document.getElementById('uploadZone');
+var georefFileInput = document.getElementById('georefFileInput');
+
+uploadZone.addEventListener('click', function() { georefFileInput.click(); });
+uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', function() { uploadZone.classList.remove('dragover'); });
+uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) grHandleFile(e.dataTransfer.files[0]);
+});
+georefFileInput.addEventListener('change', function(e) {
+  if (e.target.files.length) grHandleFile(e.target.files[0]);
+});
+
+var canvasPanel = document.getElementById('canvasPanel');
+canvasPanel.addEventListener('dragover', function(e) { e.preventDefault(); });
+canvasPanel.addEventListener('drop', function(e) {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) grHandleFile(e.dataTransfer.files[0]);
+});
+
+function grHandleFile(file) {
+  grState.fileName = file.name;
+  var ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'tif' || ext === 'tiff') {
+    file.arrayBuffer().then(function(ab) {
+      return parseTiffToCanvas(ab);
+    }).then(function(result) {
+      var img = new Image();
+      img.onload = function() {
+        grState.image = img;
+        grInitCanvas();
+        showToast('TIFF loaded: ' + file.name, 'success');
+        updateStatus('ready', 'TIFF loaded (' + result.width + ' x ' + result.height + ')');
+      };
+      img.src = result.canvas.toDataURL();
+    }).catch(function(err) {
+      showToast('Failed to load TIFF: ' + err.message, 'error');
+    });
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      grState.image = img;
+      grInitCanvas();
+      showToast('Image loaded: ' + file.name, 'success');
+      updateStatus('ready', 'Image loaded (' + img.width + ' x ' + img.height + ')');
+    };
+    img.onerror = function() { showToast('Failed to load image', 'error'); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============================================================================
+// GEOREF MODE — CANVAS
+// ============================================================================
+function grInitCanvas() {
+  document.getElementById('uploadOverlay').classList.add('hidden');
+  document.getElementById('canvasToolbar').style.display = 'flex';
+  document.getElementById('canvasInfo').style.display = 'flex';
+  document.getElementById('infoSize').textContent = grState.image.width + ' x ' + grState.image.height;
+  grZoomFit();
+}
+
+function grResizeCanvas() {
+  var rect = canvasPanel.getBoundingClientRect();
+  grCanvas.width = rect.width;
+  grCanvas.height = rect.height;
+  grRender();
+}
+
+window.addEventListener('resize', function() {
+  if (grState.image && currentMode === 'georef') grResizeCanvas();
+});
+
+function grZoomFit() {
+  var rect = canvasPanel.getBoundingClientRect();
+  grCanvas.width = rect.width;
+  grCanvas.height = rect.height;
+  var sx = grCanvas.width / grState.image.width;
+  var sy = grCanvas.height / grState.image.height;
+  grState.scale = Math.min(sx, sy) * 0.92;
+  grState.offsetX = (grCanvas.width - grState.image.width * grState.scale) / 2;
+  grState.offsetY = (grCanvas.height - grState.image.height * grState.scale) / 2;
+  grRender();
+}
+
+function grZoomIn() { grState.scale *= 1.25; grRender(); }
+function grZoomOut() { grState.scale /= 1.25; grRender(); }
+
+function grRender() {
+  if (!grState.image) return;
+  grCtx.clearRect(0, 0, grCanvas.width, grCanvas.height);
+  grCtx.fillStyle = '#1a1d26';
+  grCtx.fillRect(0, 0, grCanvas.width, grCanvas.height);
+
+  grCtx.save();
+  grCtx.translate(grState.offsetX, grState.offsetY);
+  grCtx.scale(grState.scale, grState.scale);
+  grCtx.drawImage(grState.image, 0, 0);
+  grCtx.restore();
+
+  // Draw GCP markers
+  grState.gcps.forEach(function(gcp, i) {
+    var sx = gcp.pixelX * grState.scale + grState.offsetX;
+    var sy = gcp.pixelY * grState.scale + grState.offsetY;
+    var color = GCP_COLORS[i % GCP_COLORS.length];
+    grCtx.strokeStyle = color;
+    grCtx.lineWidth = 2;
+    grCtx.beginPath();
+    grCtx.moveTo(sx - 12, sy); grCtx.lineTo(sx + 12, sy);
+    grCtx.moveTo(sx, sy - 12); grCtx.lineTo(sx, sy + 12);
+    grCtx.stroke();
+    grCtx.beginPath();
+    grCtx.arc(sx, sy, 8, 0, Math.PI * 2);
+    grCtx.stroke();
+    grCtx.fillStyle = color;
+    grCtx.font = 'bold 11px "JetBrains Mono", monospace';
+    grCtx.fillText('GCP ' + gcp.id, sx + 14, sy - 6);
+  });
+
+  document.getElementById('infoZoom').textContent = Math.round(grState.scale * 100) + '%';
+}
+
+// Canvas mouse events
+grCanvas.addEventListener('mousedown', function(e) {
+  if (grState.tool === 'pan' || e.button === 1) {
+    grState.isPanning = true;
+    grState.panStartX = e.clientX;
+    grState.panStartY = e.clientY;
+    grState.panOffsetX = grState.offsetX;
+    grState.panOffsetY = grState.offsetY;
+    grCanvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  } else if (grState.tool === 'gcp' && e.button === 0 && grState.image) {
+    var rect = grCanvas.getBoundingClientRect();
+    var cx = e.clientX - rect.left;
+    var cy = e.clientY - rect.top;
+    var px = (cx - grState.offsetX) / grState.scale;
+    var py = (cy - grState.offsetY) / grState.scale;
+    if (px >= 0 && px <= grState.image.width && py >= 0 && py <= grState.image.height) {
+      addGcp(Math.round(px), Math.round(py));
+    }
+  }
+});
+
+grCanvas.addEventListener('mousemove', function(e) {
+  if (grState.isPanning) {
+    grState.offsetX = grState.panOffsetX + (e.clientX - grState.panStartX);
+    grState.offsetY = grState.panOffsetY + (e.clientY - grState.panStartY);
+    grRender();
+    return;
+  }
+  if (grState.image) {
+    var rect = grCanvas.getBoundingClientRect();
+    var cx = e.clientX - rect.left;
+    var cy = e.clientY - rect.top;
+    var px = Math.round((cx - grState.offsetX) / grState.scale);
+    var py = Math.round((cy - grState.offsetY) / grState.scale);
+    document.getElementById('infoPixel').textContent =
+      (px >= 0 && px <= grState.image.width && py >= 0 && py <= grState.image.height)
+        ? px + ' , ' + py : '- , -';
+  }
+});
+
+grCanvas.addEventListener('mouseup', function() {
+  grState.isPanning = false;
+  grCanvas.style.cursor = grState.tool === 'pan' ? 'grab' : 'crosshair';
+});
+
+grCanvas.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  var rect = grCanvas.getBoundingClientRect();
+  var mx = e.clientX - rect.left;
+  var my = e.clientY - rect.top;
+  var factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  var newScale = grState.scale * factor;
+  grState.offsetX = mx - (mx - grState.offsetX) * (newScale / grState.scale);
+  grState.offsetY = my - (my - grState.offsetY) * (newScale / grState.scale);
+  grState.scale = newScale;
+  grRender();
+}, { passive: false });
+
+function setTool(tool) {
+  grState.tool = tool;
+  document.getElementById('toolGcp').classList.toggle('active', tool === 'gcp');
+  document.getElementById('toolPan').classList.toggle('active', tool === 'pan');
+  grCanvas.style.cursor = tool === 'pan' ? 'grab' : 'crosshair';
+}
+
+// ============================================================================
+// GEOREF MODE — GCPs
+// ============================================================================
+function addGcp(px, py) {
+  var gcp = { id: grState.nextId++, pixelX: px, pixelY: py, lon: null, lat: null };
+  grState.gcps.push(gcp);
+  renderGcpList();
+  grRender();
+  updateGcpStatus();
+  showToast('GCP ' + gcp.id + ' placed at pixel (' + px + ', ' + py + ')', 'info');
+}
+
+function removeGcp(id) {
+  grState.gcps = grState.gcps.filter(function(g) { return g.id !== id; });
+  renderGcpList();
+  grRender();
+  updateGcpStatus();
+}
+
+function clearAllGcps() {
+  grState.gcps = [];
+  grState.nextId = 1;
+  renderGcpList();
+  grRender();
+  updateGcpStatus();
+}
+
+function updateGcpCoord(id, field, value) {
+  var gcp = grState.gcps.find(function(g) { return g.id === id; });
+  if (gcp) {
+    gcp[field] = value === '' ? null : parseFloat(value);
+    renderGcpList();
+    updateGcpStatus();
+  }
+}
+
+function renderGcpList() {
+  var container = document.getElementById('gcpList');
+  if (grState.gcps.length === 0) {
+    container.innerHTML = '<div class="gcp-empty"><div class="icon">&#x1F4CC;</div><div>No GCPs placed yet.<br>Click on the image to add points.</div></div>';
+    document.getElementById('gcpCount').textContent = '0 points';
+    return;
+  }
+  document.getElementById('gcpCount').textContent = grState.gcps.length + ' point' + (grState.gcps.length > 1 ? 's' : '');
+  container.innerHTML = grState.gcps.map(function(gcp, i) {
+    var color = GCP_COLORS[i % GCP_COLORS.length];
+    var complete = gcp.lon !== null && gcp.lat !== null && !isNaN(gcp.lon) && !isNaN(gcp.lat);
+    return '<div class="gcp-card ' + (complete ? 'complete' : 'incomplete') + '">' +
+      '<div class="gcp-card-header">' +
+        '<div class="gcp-label"><div class="gcp-dot" style="background:' + color + '"></div>GCP ' + gcp.id + '</div>' +
+        '<button class="btn btn-sm btn-danger" onclick="removeGcp(' + gcp.id + ')">&#x2715;</button>' +
+      '</div>' +
+      '<div class="gcp-card-body">' +
+        '<div class="gcp-field"><label>Pixel X</label><input type="text" value="' + gcp.pixelX + '" readonly></div>' +
+        '<div class="gcp-field"><label>Pixel Y</label><input type="text" value="' + gcp.pixelY + '" readonly></div>' +
+        '<div class="gcp-field"><label>Longitude</label><input type="number" step="any" value="' + (gcp.lon !== null ? gcp.lon : '') + '" placeholder="e.g. 96.125" onchange="updateGcpCoord(' + gcp.id + ',\'lon\',this.value)"></div>' +
+        '<div class="gcp-field"><label>Latitude</label><input type="number" step="any" value="' + (gcp.lat !== null ? gcp.lat : '') + '" placeholder="e.g. 22.375" onchange="updateGcpCoord(' + gcp.id + ',\'lat\',this.value)"></div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function updateGcpStatus() {
+  var complete = grState.gcps.filter(function(g) {
+    return g.lon !== null && g.lat !== null && !isNaN(g.lon) && !isNaN(g.lat);
+  });
+  var n = complete.length;
+  if (n >= 3) {
+    updateStatus('ready', n + ' GCPs ready - export available');
+    document.getElementById('exportStatus').textContent = n + ' GCPs with coordinates. Ready to export.';
+  } else {
+    updateStatus('warning', n + '/3 GCPs with coordinates');
+    document.getElementById('exportStatus').textContent = 'Need ' + (3 - n) + ' more GCP' + (3 - n > 1 ? 's' : '') + ' with coordinates to enable export.';
+  }
+}
+
+// ============================================================================
+// GEOREF MODE — CORNER BOUNDS
+// ============================================================================
+function applyCornerBounds() {
+  var w = parseFloat(document.getElementById('boundWest').value);
+  var e_ = parseFloat(document.getElementById('boundEast').value);
+  var s = parseFloat(document.getElementById('boundSouth').value);
+  var n = parseFloat(document.getElementById('boundNorth').value);
+  if ([w, e_, s, n].some(isNaN)) {
+    showToast('Please fill in all 4 bounding coordinates', 'error');
+    return;
+  }
+  if (grState.gcps.length < 4) {
+    showToast('Place exactly 4 GCPs on the image corners first', 'error');
+    return;
+  }
+  var sorted = grState.gcps.slice(0, 4).slice();
+  sorted.sort(function(a, b) { return a.pixelY - b.pixelY; });
+  var topTwo = sorted.slice(0, 2).sort(function(a, b) { return a.pixelX - b.pixelX; });
+  var bottomTwo = sorted.slice(2, 4).sort(function(a, b) { return a.pixelX - b.pixelX; });
+  topTwo[0].lon = w; topTwo[0].lat = n;
+  topTwo[1].lon = e_; topTwo[1].lat = n;
+  bottomTwo[0].lon = w; bottomTwo[0].lat = s;
+  bottomTwo[1].lon = e_; bottomTwo[1].lat = s;
+  renderGcpList();
+  updateGcpStatus();
+  showToast('Corner coordinates applied to first 4 GCPs', 'success');
+}
+
+// ============================================================================
+// GEOREF MODE — AFFINE TRANSFORM
+// ============================================================================
+function computeAffineTransform() {
+  var gcps = grState.gcps.filter(function(g) {
+    return g.lon !== null && g.lat !== null && !isNaN(g.lon) && !isNaN(g.lat);
+  });
+  if (gcps.length < 3) return null;
+  var A = [];
+  var bx = [];
+  var by = [];
+  for (var i = 0; i < gcps.length; i++) {
+    A.push([gcps[i].pixelX, gcps[i].pixelY, 1]);
+    bx.push(gcps[i].lon);
+    by.push(gcps[i].lat);
+  }
+  var paramsX = leastSquares(A, bx);
+  var paramsY = leastSquares(A, by);
+  if (!paramsX || !paramsY) return null;
+  return { a: paramsX[0], b: paramsX[1], c: paramsX[2], d: paramsY[0], e: paramsY[1], f: paramsY[2] };
+}
+
+// ============================================================================
+// GEOREF MODE — GEOTIFF EXPORT (Custom binary encoder)
+// ============================================================================
+function buildGeoTiffBuffer(rgbPixels, w, h, transform) {
+  var SHORT = 3, LONG = 4, DOUBLE = 12;
+  var LE = true;
+  var scaleX = Math.abs(transform.a);
+  var scaleY = Math.abs(transform.e);
+  var pixelScale = [scaleX, scaleY, 0.0];
+  var tiepoint = [0, 0, 0, transform.c, transform.f, 0];
+  var geoKeys = [1, 1, 0, 3, 1024, 0, 1, 2, 1025, 0, 1, 1, 2048, 0, 1, 4326];
+
+  var numTags = 13;
+  var ifdOffset = 8;
+  var ifdSize = 2 + numTags * 12 + 4;
+  var extraStart = ifdOffset + ifdSize;
+  var extraOff = extraStart;
+
+  var bpsOff = extraOff; extraOff += 6;
+  var scaleOff = extraOff; extraOff += 3 * 8;
+  var tieOff = extraOff; extraOff += 6 * 8;
+  var geoOff = extraOff; extraOff += geoKeys.length * 2;
+  if (extraOff % 2 !== 0) extraOff++;
+
+  var pixelDataOff = extraOff;
+  var pixelDataSize = w * h * 3;
+  var totalSize = pixelDataOff + pixelDataSize;
+
+  var buf = new ArrayBuffer(totalSize);
+  var dv = new DataView(buf);
+  var u8 = new Uint8Array(buf);
+  var p = 0;
+
+  function w16(v) { dv.setUint16(p, v, LE); p += 2; }
+  function w32(v) { dv.setUint32(p, v, LE); p += 4; }
+  function wF64(v) { dv.setFloat64(p, v, LE); p += 8; }
+  function writeTag(tag, type, count, value) {
+    w16(tag); w16(type); w32(count);
+    if (type === SHORT && count === 1) { w16(value); w16(0); }
+    else if (type === LONG && count === 1) { w32(value); }
+    else { w32(value); }
+  }
+
+  dv.setUint8(0, 0x49); dv.setUint8(1, 0x49);
+  dv.setUint16(2, 42, LE);
+  dv.setUint32(4, ifdOffset, LE);
+  p = ifdOffset;
+  w16(numTags);
+  writeTag(256, LONG, 1, w);
+  writeTag(257, LONG, 1, h);
+  writeTag(258, SHORT, 3, bpsOff);
+  writeTag(259, SHORT, 1, 1);
+  writeTag(262, SHORT, 1, 2);
+  writeTag(273, LONG, 1, pixelDataOff);
+  writeTag(277, SHORT, 1, 3);
+  writeTag(278, LONG, 1, h);
+  writeTag(279, LONG, 1, pixelDataSize);
+  writeTag(284, SHORT, 1, 1);
+  writeTag(33550, DOUBLE, 3, scaleOff);
+  writeTag(33922, DOUBLE, 6, tieOff);
+  writeTag(34735, SHORT, geoKeys.length, geoOff);
+  w32(0);
+
+  p = bpsOff; w16(8); w16(8); w16(8);
+  p = scaleOff; for (var i = 0; i < pixelScale.length; i++) wF64(pixelScale[i]);
+  p = tieOff; for (var i = 0; i < tiepoint.length; i++) wF64(tiepoint[i]);
+  p = geoOff; for (var i = 0; i < geoKeys.length; i++) w16(geoKeys[i]);
+
+  var dst = pixelDataOff;
+  for (var i = 0; i < w * h; i++) {
+    u8[dst++] = rgbPixels[i * 4];
+    u8[dst++] = rgbPixels[i * 4 + 1];
+    u8[dst++] = rgbPixels[i * 4 + 2];
+  }
+  return buf;
+}
+
+function exportGeoTIFF() {
+  var transform = computeAffineTransform();
+  if (!transform) { showToast('Need at least 3 GCPs with coordinates', 'error'); return; }
+  showToast('Generating GeoTIFF...', 'info');
+  try {
+    var w = grState.image.width, h = grState.image.height;
+    var tc = document.createElement('canvas');
+    tc.width = w; tc.height = h;
+    var tctx = tc.getContext('2d');
+    tctx.drawImage(grState.image, 0, 0);
+    var rgba = tctx.getImageData(0, 0, w, h).data;
+    var tiffBuffer = buildGeoTiffBuffer(rgba, w, h, transform);
+    downloadBlob(new Blob([tiffBuffer], { type: 'image/tiff' }), grGetOutputName('.tif'));
+    showToast('GeoTIFF exported!', 'success');
+  } catch (err) {
+    showToast('Export error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================================
+// GEOREF MODE — OTHER EXPORTS
+// ============================================================================
+function exportWorldFile() {
+  var transform = computeAffineTransform();
+  if (!transform) { showToast('Need at least 3 GCPs with coordinates', 'error'); return; }
+  var centerX = transform.a * 0.5 + transform.b * 0.5 + transform.c;
+  var centerY = transform.d * 0.5 + transform.e * 0.5 + transform.f;
+  var content = [transform.a.toFixed(12), transform.d.toFixed(12), transform.b.toFixed(12), transform.e.toFixed(12), centerX.toFixed(12), centerY.toFixed(12)].join('\n');
+  var ext = grState.fileName.split('.').pop().toLowerCase();
+  var worldExts = { jpg: 'jgw', jpeg: 'jgw', png: 'pgw', tif: 'tfw', tiff: 'tfw', bmp: 'bpw' };
+  var worldExt = worldExts[ext] || 'wld';
+  downloadBlob(new Blob([content], {type: 'text/plain'}), grGetOutputName('.' + worldExt));
+  showToast('World file exported!', 'success');
+}
+
+function exportGcpFile() {
+  var gcps = grState.gcps.filter(function(g) { return g.lon !== null && g.lat !== null; });
+  if (gcps.length < 3) { showToast('Need at least 3 GCPs with coordinates', 'error'); return; }
+  var crs = document.getElementById('settingCrs').value;
+  var content = '#CRS: ' + crs + '\nmapX,mapY,sourceX,sourceY,enable,dX,dY,residual\n';
+  gcps.forEach(function(gcp) {
+    content += gcp.lon + ',' + gcp.lat + ',' + gcp.pixelX + ',' + gcp.pixelY + ',1,0,0,0\n';
+  });
+  downloadBlob(new Blob([content], {type: 'text/plain'}), grGetOutputName('.points'));
+  showToast('GCP file exported!', 'success');
+}
+
+function exportGcpCsv() {
+  var gcps = grState.gcps.filter(function(g) { return g.lon !== null && g.lat !== null; });
+  if (gcps.length === 0) { showToast('No GCPs with coordinates to export', 'error'); return; }
+  var content = 'GCP_ID,Pixel_X,Pixel_Y,Longitude,Latitude\n';
+  gcps.forEach(function(gcp) {
+    content += gcp.id + ',' + gcp.pixelX + ',' + gcp.pixelY + ',' + gcp.lon + ',' + gcp.lat + '\n';
+  });
+  downloadBlob(new Blob([content], {type: 'text/csv'}), grGetOutputName('_gcps.csv'));
+  showToast('GCP CSV exported!', 'success');
+}
+
+function exportPrjFile() {
+  var crs = document.getElementById('settingCrs').value;
+  var wktMap = {
+    'EPSG:4326': 'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]',
+    'EPSG:32646': 'PROJCS["WGS_1984_UTM_Zone_46N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",93.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]',
+    'EPSG:32647': 'PROJCS["WGS_1984_UTM_Zone_47N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",99.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]',
+    'EPSG:32648': 'PROJCS["WGS_1984_UTM_Zone_48N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",105.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]',
+  };
+  var wkt = wktMap[crs] || wktMap['EPSG:4326'];
+  downloadBlob(new Blob([wkt], {type: 'text/plain'}), grGetOutputName('.prj'));
+  showToast('PRJ file exported!', 'success');
+}
+
+function grGetOutputName(ext) {
+  var base = grState.fileName.replace(/\.[^.]+$/, '') || 'georef';
+  return base + '_georef' + ext;
+}
+
+function grSwitchTab(tab) {
+  document.querySelectorAll('.georef-side-panel .panel-tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  document.querySelectorAll('.georef-side-panel .tab-page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// Init GeoRef
+renderGcpList();
+
+// ============================================================================
+// SEND TO DIGITIZER (Integration)
+// ============================================================================
+function sendToDigitizer() {
+  var transform = computeAffineTransform();
+  if (!transform) {
+    showToast('Need at least 3 GCPs with coordinates', 'error');
+    return;
+  }
+  if (!grState.image) {
+    showToast('No image loaded', 'error');
+    return;
+  }
+
+  var w = grState.image.width;
+  var h = grState.image.height;
+
+  // Compute corner coordinates using the affine transform
+  // Top-left (0,0)
+  var tlLon = transform.a * 0 + transform.b * 0 + transform.c;
+  var tlLat = transform.d * 0 + transform.e * 0 + transform.f;
+  // Top-right (w,0)
+  var trLon = transform.a * w + transform.b * 0 + transform.c;
+  var trLat = transform.d * w + transform.e * 0 + transform.f;
+  // Bottom-left (0,h)
+  var blLon = transform.a * 0 + transform.b * h + transform.c;
+  var blLat = transform.d * 0 + transform.e * h + transform.f;
+  // Bottom-right (w,h)
+  var brLon = transform.a * w + transform.b * h + transform.c;
+  var brLat = transform.d * w + transform.e * h + transform.f;
+
+  var south = Math.min(tlLat, trLat, blLat, brLat);
+  var north = Math.max(tlLat, trLat, blLat, brLat);
+  var west = Math.min(tlLon, trLon, blLon, brLon);
+  var east = Math.max(tlLon, trLon, blLon, brLon);
+
+  // Get image data URL
+  var tc = document.createElement('canvas');
+  tc.width = w; tc.height = h;
+  tc.getContext('2d').drawImage(grState.image, 0, 0);
+  var dataURL = tc.toDataURL('image/png');
+
+  AppBridge.pendingOverlay = {
+    dataURL: dataURL,
+    bounds: [[south, west], [north, east]],
+    name: grState.fileName || 'Georeferenced Image'
+  };
+
+  showToast('Sending image to Digitizer...', 'info');
+  switchMode('digitizer');
+}
+
+// ============================================================================
+// DIGITIZER MODE — LEAFLET
+// ============================================================================
+var map, drawn, drawControl, measureGroup;
+var digiLayers = []; // {id, name, type, leafletLayer, visible}
+var digiNextId = 1;
+var activeMeasureTool = null; // 'distance' | 'area' | null
+var measurePoints = [];
+var measureTempLayer = null;
+
+function initLeaflet() {
+  map = L.map('map', { zoomControl: true }).setView([20, 96], 5);
+
+  var osm = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '&copy; OpenStreetMap', className: 'dark-tiles' }
+  ).addTo(map);
+
+  var satellite = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Esri' }
+  );
+
+  L.control.layers({ 'OpenStreetMap': osm, 'Satellite': satellite }).addTo(map);
+
+  drawn = new L.FeatureGroup();
+  map.addLayer(drawn);
+
+  measureGroup = new L.FeatureGroup();
+  map.addLayer(measureGroup);
+
+  drawControl = new L.Control.Draw({
+    edit: { featureGroup: drawn },
+    draw: {
+      polygon: true,
+      polyline: true,
+      marker: true,
+      circle: true,
+      rectangle: true,
+      circlemarker: false
+    }
+  });
+  map.addControl(drawControl);
+
+  // Handle draw events
+  map.on(L.Draw.Event.CREATED, function(e) {
+    var layer = e.layer;
+    var type = e.layerType;
+    layer.feature = { type: 'Feature', properties: { name: '' } };
+
+    // Show name popup on click
+    layer.on('click', function() {
+      showFeaturePopup(layer);
+    });
+
+    drawn.addLayer(layer);
+
+    // Add to layer list
+    var layerInfo = {
+      id: digiNextId++,
+      name: type.charAt(0).toUpperCase() + type.slice(1) + ' ' + (digiLayers.filter(function(l) { return l.type === 'vector'; }).length + 1),
+      type: 'vector',
+      subtype: type,
+      leafletLayer: layer,
+      visible: true
+    };
+    digiLayers.push(layerInfo);
+    updateDigiLayerList();
+    showToast('Feature created: ' + layerInfo.name, 'success');
+  });
+
+  // Handle measure clicks
+  map.on('click', function(e) {
+    if (!activeMeasureTool) return;
+    measurePoints.push(e.latlng);
+    updateMeasurePreview();
+  });
+
+  map.on('dblclick', function(e) {
+    if (!activeMeasureTool) return;
+    L.DomEvent.stopPropagation(e);
+    L.DomEvent.preventDefault(e);
+    finishMeasurement();
+  });
+
+  // Digitizer file handlers
+  document.getElementById('digiGeotiff').addEventListener('change', function() {
+    if (this.files.length) handleDigiGeoTiff(this.files[0]);
+    this.value = '';
+  });
+
+  document.getElementById('digiImage').addEventListener('change', function() {
+    if (this.files.length) handleDigiImage(this.files[0]);
+    this.value = '';
+  });
+
+  document.getElementById('digiOpacity').addEventListener('input', function() {
+    var val = parseFloat(this.value);
+    digiLayers.forEach(function(l) {
+      if ((l.type === 'raster' || l.type === 'geotiff') && l.leafletLayer && l.leafletLayer.setOpacity) {
+        l.leafletLayer.setOpacity(val);
+      }
+    });
+  });
+
+  document.getElementById('digiGeojsonUpload').addEventListener('change', function() {
+    if (this.files.length) handleDigiGeojsonImport(this.files[0]);
+    this.value = '';
+  });
+}
+
+// ============================================================================
+// DIGITIZER — GeoTIFF HANDLER (FIXED: uses actual geographic bounds)
+// ============================================================================
+function handleDigiGeoTiff(file) {
+  showToast('Loading GeoTIFF...', 'info');
+  file.arrayBuffer().then(function(buffer) {
+    return GeoTIFF.fromArrayBuffer(buffer).then(function(tiff) {
+      return tiff.getImage().then(function(image) {
+        var w = image.getWidth();
+        var h = image.getHeight();
+        return image.readRasters().then(function(data) {
+          // Render to canvas
+          var c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          var ctx = c.getContext('2d');
+          var id = ctx.createImageData(w, h);
+          var numBands = data.length;
+          for (var i = 0; i < w * h; i++) {
+            if (numBands >= 3) {
+              id.data[i * 4] = data[0][i];
+              id.data[i * 4 + 1] = data[1][i];
+              id.data[i * 4 + 2] = data[2][i];
+              id.data[i * 4 + 3] = numBands >= 4 ? data[3][i] : 255;
+            } else {
+              id.data[i * 4] = data[0][i];
+              id.data[i * 4 + 1] = data[0][i];
+              id.data[i * 4 + 2] = data[0][i];
+              id.data[i * 4 + 3] = 255;
+            }
+          }
+          ctx.putImageData(id, 0, 0);
+          var dataURL = c.toDataURL();
+
+          // FIXED: Extract actual geographic bounds from GeoTIFF metadata
+          var bounds;
+          var hasGeoreference = false;
+          try {
+            var bbox = image.getBoundingBox();
+            if (bbox && bbox.length === 4 && bbox.some(function(v) { return v !== 0; })) {
+              // bbox = [west, south, east, north] in geographic coordinates
+              bounds = [[bbox[1], bbox[0]], [bbox[3], bbox[2]]];
+              hasGeoreference = true;
+            }
+          } catch (e) {
+            // No bounding box available
+          }
+
+          if (!hasGeoreference) {
+            // Fallback: use current map bounds with warning
+            showToast('Warning: GeoTIFF has no georeference metadata. Using current view bounds.', 'warning');
+            var mb = map.getBounds();
+            bounds = [[mb.getSouth(), mb.getWest()], [mb.getNorth(), mb.getEast()]];
+          }
+
+          var opacity = parseFloat(document.getElementById('digiOpacity').value);
+          var overlay = L.imageOverlay(dataURL, bounds, { opacity: opacity }).addTo(map);
+
+          var layerInfo = {
+            id: digiNextId++,
+            name: file.name,
+            type: 'geotiff',
+            leafletLayer: overlay,
+            visible: true,
+            bounds: bounds
+          };
+          digiLayers.push(layerInfo);
+          updateDigiLayerList();
+
+          // Auto-fit to the overlay bounds
+          map.fitBounds(bounds);
+
+          if (hasGeoreference) {
+            showToast('GeoTIFF loaded at correct geographic position', 'success');
+          }
+        });
+      });
+    });
+  }).catch(function(err) {
+    showToast('Failed to load GeoTIFF: ' + err.message, 'error');
+  });
+}
+
+// ============================================================================
+// DIGITIZER — Image handler
+// ============================================================================
+function handleDigiImage(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    showToast('Note: Image has no georeference. Placed at current view bounds.', 'warning');
+    var mb = map.getBounds();
+    var bounds = [[mb.getSouth(), mb.getWest()], [mb.getNorth(), mb.getEast()]];
+    var opacity = parseFloat(document.getElementById('digiOpacity').value);
+    var overlay = L.imageOverlay(e.target.result, bounds, { opacity: opacity }).addTo(map);
+
+    var layerInfo = {
+      id: digiNextId++,
+      name: file.name,
+      type: 'raster',
+      leafletLayer: overlay,
+      visible: true,
+      bounds: bounds
+    };
+    digiLayers.push(layerInfo);
+    updateDigiLayerList();
+    showToast('Image overlay added: ' + file.name, 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============================================================================
+// DIGITIZER — Receive overlay from GeoRef (AppBridge)
+// ============================================================================
+function receiveOverlay() {
+  if (!AppBridge.pendingOverlay) return;
+  var data = AppBridge.pendingOverlay;
+  AppBridge.pendingOverlay = null;
+
+  var opacity = parseFloat(document.getElementById('digiOpacity').value);
+  var overlay = L.imageOverlay(data.dataURL, data.bounds, { opacity: opacity }).addTo(map);
+
+  var layerInfo = {
+    id: digiNextId++,
+    name: data.name + ' (from GeoRef)',
+    type: 'geotiff',
+    leafletLayer: overlay,
+    visible: true,
+    bounds: data.bounds
+  };
+  digiLayers.push(layerInfo);
+  updateDigiLayerList();
+  map.fitBounds(data.bounds);
+  showToast('Georeferenced image overlaid on map', 'success');
+  updateStatus('ready', 'Image received from GeoRef mode');
+}
+
+// ============================================================================
+// DIGITIZER — Layer list management
+// ============================================================================
+function updateDigiLayerList() {
+  var container = document.getElementById('digiLayerList');
+  if (digiLayers.length === 0) {
+    container.innerHTML = '<div class="gcp-empty"><div class="icon">&#x1F5C2;&#xFE0F;</div><div>No layers yet</div></div>';
+    return;
+  }
+  container.innerHTML = digiLayers.map(function(l) {
+    var icons = { geotiff: '&#x1F30D;', raster: '&#x1F5BC;&#xFE0F;', vector: '&#x2B50;' };
+    var subtypeIcons = { polygon: '&#x2B1B;', polyline: '&#x2796;', marker: '&#x1F4CD;', rectangle: '&#x25FB;&#xFE0F;', circle: '&#x25EF;' };
+    var icon = l.type === 'vector' ? (subtypeIcons[l.subtype] || icons.vector) : (icons[l.type] || '&#x1F4C4;');
+    var visIcon = l.visible ? '&#x1F441;&#xFE0F;' : '&#x1F441;';
+    return '<div class="layer-item">' +
+      '<span class="layer-icon">' + icon + '</span>' +
+      '<span class="layer-name" title="' + l.name + '">' + l.name + '</span>' +
+      '<div class="layer-actions">' +
+        '<button onclick="toggleLayerVisibility(' + l.id + ')" title="Toggle visibility">' + visIcon + '</button>' +
+        (l.bounds ? '<button onclick="zoomToLayer(' + l.id + ')" title="Zoom to">&#x1F50D;</button>' : '') +
+        '<button onclick="removeLayer(' + l.id + ')" title="Delete">&#x1F5D1;</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function toggleLayerVisibility(id) {
+  var l = digiLayers.find(function(x) { return x.id === id; });
+  if (!l) return;
+  l.visible = !l.visible;
+  if (l.visible) {
+    if (!map.hasLayer(l.leafletLayer)) map.addLayer(l.leafletLayer);
+  } else {
+    if (map.hasLayer(l.leafletLayer)) map.removeLayer(l.leafletLayer);
+  }
+  updateDigiLayerList();
+}
+
+function zoomToLayer(id) {
+  var l = digiLayers.find(function(x) { return x.id === id; });
+  if (!l) return;
+  if (l.bounds) {
+    map.fitBounds(l.bounds);
+  } else if (l.leafletLayer.getBounds) {
+    map.fitBounds(l.leafletLayer.getBounds());
+  }
+}
+
+function removeLayer(id) {
+  var idx = digiLayers.findIndex(function(x) { return x.id === id; });
+  if (idx < 0) return;
+  var l = digiLayers[idx];
+  if (map.hasLayer(l.leafletLayer)) map.removeLayer(l.leafletLayer);
+  if (l.type === 'vector' && drawn.hasLayer(l.leafletLayer)) drawn.removeLayer(l.leafletLayer);
+  digiLayers.splice(idx, 1);
+  updateDigiLayerList();
+  showToast('Layer removed', 'info');
+}
+
+// ============================================================================
+// DIGITIZER — Feature popup
+// ============================================================================
+function showFeaturePopup(layer) {
+  var name = (layer.feature && layer.feature.properties && layer.feature.properties.name) || '';
+  var latlng = layer.getLatLng ? layer.getLatLng() : (layer.getBounds ? layer.getBounds().getCenter() : map.getCenter());
+  var popup = L.popup().setLatLng(latlng).setContent(
+    '<div class="feature-popup">' +
+    '<input type="text" id="featureNameInput" placeholder="Feature name" value="' + name.replace(/"/g, '&quot;') + '">' +
+    '<button class="popup-save" onclick="saveFeatureName(this)">Save</button>' +
+    '</div>'
+  ).openOn(map);
+  popup._layer = layer;
+}
+
+function saveFeatureName(btn) {
+  var input = document.getElementById('featureNameInput');
+  var name = input.value;
+  // Find the popup and its associated layer
+  map.eachLayer(function(l) {
+    if (l instanceof L.Popup && l._layer) {
+      l._layer.feature.properties.name = name;
+      // Update name in digiLayers list
+      var dl = digiLayers.find(function(x) { return x.leafletLayer === l._layer; });
+      if (dl && name) dl.name = name;
+      updateDigiLayerList();
+    }
+  });
+  map.closePopup();
+  showToast('Feature name saved', 'success');
+}
+
+// ============================================================================
+// DIGITIZER — Measurement tools
+// ============================================================================
+function startMeasureDistance() {
+  if (activeMeasureTool === 'distance') {
+    cancelMeasure();
+    return;
+  }
+  cancelMeasure();
+  activeMeasureTool = 'distance';
+  measurePoints = [];
+  document.getElementById('btnMeasureDist').classList.add('active');
+  map.getContainer().style.cursor = 'crosshair';
+  showToast('Click points to measure distance. Double-click to finish.', 'info');
+  updateStatus('warning', 'Measuring distance...');
+}
+
+function startMeasureArea() {
+  if (activeMeasureTool === 'area') {
+    cancelMeasure();
+    return;
+  }
+  cancelMeasure();
+  activeMeasureTool = 'area';
+  measurePoints = [];
+  document.getElementById('btnMeasureArea').classList.add('active');
+  map.getContainer().style.cursor = 'crosshair';
+  showToast('Click points to measure area. Double-click to finish.', 'info');
+  updateStatus('warning', 'Measuring area...');
+}
+
+function cancelMeasure() {
+  activeMeasureTool = null;
+  measurePoints = [];
+  if (measureTempLayer) { measureGroup.removeLayer(measureTempLayer); measureTempLayer = null; }
+  document.getElementById('btnMeasureDist').classList.remove('active');
+  document.getElementById('btnMeasureArea').classList.remove('active');
+  map.getContainer().style.cursor = '';
+  updateStatus('ready', 'Digitizer mode');
+}
+
+function updateMeasurePreview() {
+  if (measureTempLayer) { measureGroup.removeLayer(measureTempLayer); measureTempLayer = null; }
+  if (measurePoints.length < 2) return;
+  if (activeMeasureTool === 'distance') {
+    measureTempLayer = L.polyline(measurePoints, { color: '#c9915a', weight: 3, dashArray: '8,6' }).addTo(measureGroup);
+  } else if (activeMeasureTool === 'area') {
+    measureTempLayer = L.polygon(measurePoints, { color: '#c9915a', weight: 2, fillColor: '#c9915a', fillOpacity: 0.15, dashArray: '8,6' }).addTo(measureGroup);
+  }
+}
+
+function finishMeasurement() {
+  if (measurePoints.length < 2) { cancelMeasure(); return; }
+  if (measureTempLayer) { measureGroup.removeLayer(measureTempLayer); measureTempLayer = null; }
+
+  if (activeMeasureTool === 'distance') {
+    var totalMeters = 0;
+    for (var i = 1; i < measurePoints.length; i++) {
+      totalMeters += measurePoints[i - 1].distanceTo(measurePoints[i]);
+    }
+    var km = totalMeters / 1000;
+    var mi = km * 0.621371;
+    var line = L.polyline(measurePoints, { color: '#c9915a', weight: 3 }).addTo(measureGroup);
+    var center = measurePoints[Math.floor(measurePoints.length / 2)];
+    L.popup({ closeButton: true, className: 'measure-popup' })
+      .setLatLng(center)
+      .setContent('<div class="measure-popup"><strong>Distance</strong><br>' + km.toFixed(3) + ' km<br>' + mi.toFixed(3) + ' mi<br>' + totalMeters.toFixed(1) + ' m</div>')
+      .openOn(map);
+    showToast('Distance: ' + km.toFixed(3) + ' km', 'success');
+  } else if (activeMeasureTool === 'area') {
+    if (measurePoints.length < 3) { cancelMeasure(); return; }
+    var polygon = L.polygon(measurePoints, { color: '#c9915a', weight: 2, fillColor: '#c9915a', fillOpacity: 0.2 }).addTo(measureGroup);
+    var areaSqm = computeGeodesicArea(measurePoints);
+    var areaKm2 = areaSqm / 1e6;
+    var areaHa = areaSqm / 1e4;
+    var center = polygon.getBounds().getCenter();
+    L.popup({ closeButton: true, className: 'measure-popup' })
+      .setLatLng(center)
+      .setContent('<div class="measure-popup"><strong>Area</strong><br>' + areaKm2.toFixed(4) + ' km&sup2;<br>' + areaHa.toFixed(2) + ' ha<br>' + areaSqm.toFixed(0) + ' m&sup2;</div>')
+      .openOn(map);
+    showToast('Area: ' + areaKm2.toFixed(4) + ' km\u00B2', 'success');
+  }
+
+  activeMeasureTool = null;
+  measurePoints = [];
+  document.getElementById('btnMeasureDist').classList.remove('active');
+  document.getElementById('btnMeasureArea').classList.remove('active');
+  map.getContainer().style.cursor = '';
+  updateStatus('ready', 'Digitizer mode');
+}
+
+function clearMeasurements() {
+  cancelMeasure();
+  measureGroup.clearLayers();
+  showToast('Measurements cleared', 'info');
+}
+
+// ============================================================================
+// DIGITIZER — GeoJSON import/export
+// ============================================================================
+function digiExportGeoJSON() {
+  var data = drawn.toGeoJSON();
+  if (data.features.length === 0) {
+    showToast('No features to export', 'warning');
+    return;
+  }
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, 'features.geojson');
+  showToast('GeoJSON exported (' + data.features.length + ' features)', 'success');
+}
+
+function handleDigiGeojsonImport(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      var geoLayer = L.geoJSON(data);
+      var count = 0;
+      geoLayer.eachLayer(function(l) {
+        if (!l.feature) l.feature = { type: 'Feature', properties: {} };
+        if (!l.feature.properties) l.feature.properties = {};
+        if (!l.feature.properties.name) l.feature.properties.name = '';
+        l.on('click', function() { showFeaturePopup(l); });
+        drawn.addLayer(l);
+        var layerInfo = {
+          id: digiNextId++,
+          name: l.feature.properties.name || ('Imported ' + (count + 1)),
+          type: 'vector',
+          subtype: 'polygon',
+          leafletLayer: l,
+          visible: true
+        };
+        digiLayers.push(layerInfo);
+        count++;
+      });
+      updateDigiLayerList();
+      if (geoLayer.getBounds().isValid()) map.fitBounds(geoLayer.getBounds());
+      showToast('Imported ' + count + ' features from GeoJSON', 'success');
+    } catch (err) {
+      showToast('Invalid GeoJSON file: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================================
+// DIGITIZER — Tab switching
+// ============================================================================
+function digiSwitchTab(tab) {
+  document.querySelectorAll('.digi-sidebar .panel-tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.dtab === tab);
+  });
+  document.querySelectorAll('.digi-sidebar .tab-page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('dtab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+</script>
+</body>
+</html>
